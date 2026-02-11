@@ -66,7 +66,6 @@ streamlit run app.py
 - [ ] Export conversation history
 - [ ] Custom chunk size configuration
 - [ ] Support for more file types (DOCX, CSV)
-- [ ] Agent-based tool usage
 
 ## Author
 
