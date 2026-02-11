@@ -24,6 +24,9 @@ if 'vectorstore' not in st.session_state:
 if 'checkpointer' not in st.session_state:
     st.session_state.checkpointer = InMemorySaver()
 
+MODEL_NAME = os.getenv('MODEL', 'gpt-4.1-mini')
+
+
 # Page config
 st.set_page_config(page_title="RAG Document Assistant", page_icon="🤖")
 st.title("🤖 RAG Document Assistant")
@@ -98,7 +101,7 @@ with st.sidebar:
                     description="Search the document for relevant information"
                 )
                 st.session_state.agent = create_agent(
-                    model="gpt-4.1-mini",
+                    model= MODEL_NAME,
                     tools=[retriever_tool],
                     checkpointer=st.session_state.checkpointer,
                     system_prompt=('You are a helpful document assistant. '
@@ -135,7 +138,7 @@ with st.sidebar:
                     description="Search the document for relevant information"
                 )
                 st.session_state.agent = create_agent(
-                    model="gpt-4.1-mini",
+                    model= MODEL_NAME,
                     tools=[retriever_tool],
                     checkpointer=st.session_state.checkpointer,
                     system_prompt=(
@@ -149,10 +152,10 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### ℹ️ About")
-    st.markdown("""
+    st.markdown(f"""
     This RAG chatbot uses:
     - **LangChain** for orchestration
-    - **OpenAI GPT-4.1-mini** for answers
+    - **OpenAI {MODEL_NAME}** for answers
     - **Chroma** for vector storage
     - **Embeddings** for semantic search
     """)
