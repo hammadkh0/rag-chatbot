@@ -193,7 +193,7 @@ if st.session_state.vectorstore:
                 with st.expander("📚 View Sources"):
                     source_msgs = [m for m in result["messages"] if isinstance(m, ToolMessage)]
                     if source_msgs:
-                        for i, msg in enumerate[ToolMessage](source_msgs):
+                        for i, msg in enumerate(source_msgs):
                             st.markdown(f"**Source {i+1}:**")
                             st.text(msg.content[:300] + "...")
                             st.markdown("---")
