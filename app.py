@@ -1,17 +1,17 @@
-from typing import Any
+from langchain_core.messages.tool import ToolMessage
 import streamlit as st
 from dotenv import load_dotenv
 import os
 import tempfile
 
-
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_classic.chains.retrieval_qa.base import RetrievalQA
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_classic.memory import ConversationBufferMemory
-from langchain_classic.chains.conversational_retrieval.base import ConversationalRetrievalChain
+from langchain.agents import create_agent
+from langchain_core.tools import create_retriever_tool
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.messages import ToolMessage
 
 # Load environment variables
 load_dotenv()
@@ -72,6 +72,23 @@ with st.sidebar:
                 )
                 
                 st.session_state.vectorstore = vectorstore
+                retreiver = vectorstore.as_retriever(search_kwargs={"k": 4})
+                retreiver_tool = create_retriever_tool(
+                    retreiver,
+                    name="document_search",
+                    description="Search the document for relevant information"
+                )
+                checkpointer = InMemorySaver()
+                st.session_state.agent = create_agent(
+                    model="gpt-4.1-mini",
+                    tools=[retreiver_tool],
+                    checkpointer=checkpointer,
+                    system_prompt=('You are a helpful document assistant. '
+                        'Use the doc_search tool to find relevant information from the uploaded document before answering. '
+                        'Always cite which parts of the document you used. '
+                        'If the document doesn\'t contain the answer, say so.'
+                    )
+                )
                 st.success(f"✅ Processed {len(splits)} chunks!")
                 
                 # Clean up temp file
@@ -107,35 +124,25 @@ if st.session_state.vectorstore:
         # Generate response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                # Create QA chain
-                llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0)
-                # Initialize memory if not exists
-                if 'memory' not in st.session_state:
-                    st.session_state.memory = ConversationBufferMemory(
-                        memory_key="chat_history",
-                        return_messages=True,
-                        output_key="answer"
-                    )
-
-                qa_chain = ConversationalRetrievalChain.from_llm(
-                    llm=llm,
-                    retriever=st.session_state.vectorstore.as_retriever(search_kwargs={"k": 3}),
-                    memory=st.session_state.memory,
-                    return_source_documents=True
-                )
-
-                # Get response
-                result = qa_chain.invoke({"question": prompt})
-                answer = result['answer']
-                
+                config = {'configurable': {'thread_id': 'streamlit-session'}}
+                result = st.session_state.agent.invoke({
+                    'messages': [
+                        {'role': 'user', 'content': prompt}
+                    ]
+                }, config=config)
+                answer = result["messages"][-1].content
                 st.markdown(answer)
                 
                 # Show sources
                 with st.expander("📚 View Sources"):
-                    for i, doc in enumerate(result['source_documents']):
-                        st.markdown(f"**Source {i+1}:**")
-                        st.text(doc.page_content[:300] + "...")
-                        st.markdown("---")
+                    source_msgs = [m for m in result["messages"] if isinstance(m, ToolMessage)]
+                    if source_msgs:
+                        for i, msg in enumerate[ToolMessage](source_msgs):
+                            st.markdown(f"**Source {i+1}:**")
+                            st.text(msg.content[:300] + "...")
+                            st.markdown("---")
+                    else:
+                        st.markdown("No sources retrieved for this answer.")
         
         # Add assistant response to history
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
