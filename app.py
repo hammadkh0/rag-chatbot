@@ -21,6 +21,8 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'vectorstore' not in st.session_state:
     st.session_state.vectorstore = None
+if 'checkpointer' not in st.session_state:
+    st.session_state.checkpointer = InMemorySaver()
 
 # Page config
 st.set_page_config(page_title="RAG Document Assistant", page_icon="🤖")
@@ -54,7 +56,10 @@ with st.sidebar:
                     loader = TextLoader(tmp_path)
                 
                 documents = loader.load()
-                
+                doc_name = uploaded_file.name
+                for doc in documents:
+                    doc.metadata["source_doc"] = doc_name
+
                 # Split into chunks
                 text_splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1000,
@@ -65,24 +70,37 @@ with st.sidebar:
                 
                 # Create embeddings and vector store
                 embeddings = OpenAIEmbeddings()
-                vectorstore = Chroma.from_documents(
-                    documents=splits,
-                    embedding=embeddings,
-                    persist_directory="./chroma_db"
-                )
-                
+                # Load existing store or create new one
+                if os.path.exists("./chroma_db"):
+                    vectorstore = Chroma(
+                        persist_directory="./chroma_db",
+                        embedding_function=embeddings,
+                    )
+                    vectorstore.add_documents(splits)
+                else:
+                    vectorstore = Chroma.from_documents(
+                        documents=splits,
+                        embedding=embeddings,
+                        persist_directory="./chroma_db",
+                    )
+
                 st.session_state.vectorstore = vectorstore
-                retreiver = vectorstore.as_retriever(search_kwargs={"k": 4})
-                retreiver_tool = create_retriever_tool(
-                    retreiver,
+                st.session_state.active_doc = doc_name
+                retriever = vectorstore.as_retriever(
+                    search_kwargs={
+                        "k": 4,
+                        "filter": {"source_doc": doc_name},
+                    }
+                )
+                retriever_tool = create_retriever_tool(
+                    retriever,
                     name="document_search",
                     description="Search the document for relevant information"
                 )
-                checkpointer = InMemorySaver()
                 st.session_state.agent = create_agent(
                     model="gpt-4.1-mini",
-                    tools=[retreiver_tool],
-                    checkpointer=checkpointer,
+                    tools=[retriever_tool],
+                    checkpointer=st.session_state.checkpointer,
                     system_prompt=('You are a helpful document assistant. '
                         'Use the doc_search tool to find relevant information from the uploaded document before answering. '
                         'Always cite which parts of the document you used. '
@@ -94,6 +112,41 @@ with st.sidebar:
                 # Clean up temp file
                 os.unlink(tmp_path)
     
+    if st.session_state.vectorstore:
+        # Get all unique document names from chroma
+        all_docs = list(set(
+            m['source_doc'] for m in st.session_state.vectorstore.get()['metadatas']
+            if "source_doc" in m
+        ))
+        if len(all_docs) > 1:
+            selected = st.selectbox("📄 Switch document",all_docs,index=all_docs.index(st.session_state.active_doc))
+            if selected != st.session_state.active_doc:
+                st.session_state.active_doc = selected
+                # Rebuild retriever with new filter
+                retriever = st.session_state.vectorstore.as_retriever(
+                    search_kwargs={
+                        "k": 4,
+                        "filter": {"source_doc": selected},
+                    }
+                )
+                retriever_tool = create_retriever_tool(
+                    retriever,
+                    name="document_search",
+                    description="Search the document for relevant information"
+                )
+                st.session_state.agent = create_agent(
+                    model="gpt-4.1-mini",
+                    tools=[retriever_tool],
+                    checkpointer=st.session_state.checkpointer,
+                    system_prompt=(
+                        "You are a helpful document assistant. "
+                        "Use the document_search tool to find relevant information from the uploaded document before answering. "
+                        "Always cite which parts of the document you used. "
+                        "If the document doesn't contain the answer, say so."
+                    ),
+                )
+                st.success(f"✅ Switched to {selected}")
+
     st.markdown("---")
     st.markdown("### ℹ️ About")
     st.markdown("""
