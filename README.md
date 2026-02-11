@@ -71,8 +71,8 @@ streamlit run app.py
 
 Muhammad Hammad Khalid - Full Stack Developer
 
-- LinkedIn: [https://www.linkedin.com/in/muhammad-hammad-khalid-096488219/your-lin]
-- GitHub: [https://github.com/hammadkh0your-lin]
+- LinkedIn: [https://www.linkedin.com/in/muhammad-hammad-khalid-096488219]
+- GitHub: [https://github.com/hammadkh0]
 - Email: hammad5718@gmail.com
 
 Built as part of exploring AI/ML integration patterns for production applications.
