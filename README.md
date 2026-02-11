@@ -2,6 +2,8 @@
 
 An intelligent document Q&A system built with LangChain, OpenAI, and Streamlit.
 
+Live: [Streamlit](https://rag-chatbot-rgd3qyqcpf5di4nws3wk93.streamlit.app)
+
 ## Features
 
 - 📄 **Document Upload**: Support for PDF and TXT files
@@ -48,10 +50,6 @@ streamlit run app.py
 - Resume/CV analysis
 - Legal document review
 - Technical manual navigation
-
-## Demo
-
-[Add screenshots here]
 
 ## Technical Highlights
 
