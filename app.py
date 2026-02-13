@@ -188,17 +188,6 @@ if st.session_state.vectorstore:
                 }, config=config)
                 answer = result["messages"][-1].content
                 st.markdown(answer)
-                
-                # Show sources
-                with st.expander("📚 View Sources"):
-                    source_msgs = [m for m in result["messages"] if isinstance(m, ToolMessage)]
-                    if source_msgs:
-                        for i, msg in enumerate(source_msgs):
-                            st.markdown(f"**Source {i+1}:**")
-                            st.text(msg.content[:300] + "...")
-                            st.markdown("---")
-                    else:
-                        st.markdown("No sources retrieved for this answer.")
         
         # Add assistant response to history
         st.session_state.chat_history.append({"role": "assistant", "content": answer})
