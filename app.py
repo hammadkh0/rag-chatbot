@@ -181,17 +181,23 @@ if st.session_state.vectorstore:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 config = {'configurable': {'thread_id': 'streamlit-session'}}
-                result = st.session_state.agent.invoke({
+                response_container = st.empty()
+                full_answer = ""
+                for msg,metadata in st.session_state.agent.stream({
                     'messages': [
                         {'role': 'user', 'content': prompt}
                     ]
-                }, config=config)
-                answer = result["messages"][-1].content
-                st.markdown(answer)
-        
-        # Add assistant response to history
-        st.session_state.chat_history.append({"role": "assistant", "content": answer})
-
+                }, config=config, stream_mode="messages"):
+                    # Only stream AI text tokens (skip tool calls, tool results, etc.)
+                    if hasattr(msg, 'content') and msg.content and metadata.get("langgraph_node") == "model":
+                        full_answer += msg.content
+                        response_container.markdown(full_answer + "▌")
+                
+                # Final render without cursor
+                response_container.markdown(full_answer)
+            
+            # Save to history ONCE after streaming is done
+            st.session_state.chat_history.append({"role": "assistant", "content": full_answer})
 else:
     st.info("👈 Upload a document from the sidebar to get started!")
     
