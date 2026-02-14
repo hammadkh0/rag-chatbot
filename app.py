@@ -105,7 +105,7 @@ with st.sidebar:
                     tools=[retriever_tool],
                     checkpointer=st.session_state.checkpointer,
                     system_prompt=('You are a helpful document assistant. '
-                        'Use the doc_search tool to find relevant information from the uploaded document before answering. '
+                        'Use the document_search tool to find relevant information from the uploaded document before answering. '
                         'Always cite which parts of the document you used. '
                         'If the document doesn\'t contain the answer, say so.'
                     )
@@ -117,7 +117,7 @@ with st.sidebar:
     
     if st.session_state.vectorstore:
         # Get all unique document names from chroma
-        all_docs = list(set(
+        all_docs = sorted(set(
             m['source_doc'] for m in st.session_state.vectorstore.get()['metadatas']
             if "source_doc" in m
         ))
@@ -180,7 +180,7 @@ if st.session_state.vectorstore:
         # Generate response
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                config = {'configurable': {'thread_id': 'streamlit-session'}}
+                config = {'configurable': {'thread_id': f'session-{st.session_state.active_doc}'}}
                 response_container = st.empty()
                 full_answer = ""
                 for msg,metadata in st.session_state.agent.stream({
